@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: seat-booking-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: seat_booking
+      POSTGRES_USER: booking_user
+      POSTGRES_PASSWORD: booking_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: seat-booking-api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: seat_booking
+      DATABASE_USER: booking_user
+      DATABASE_PASSWORD: booking_password
+      DATABASE_URL: postgres://booking_user:booking_password@postgres:5432/seat_booking
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
