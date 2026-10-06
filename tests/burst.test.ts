@@ -8,6 +8,7 @@ test("50 concurrent requests for the same seat produce exactly one winner", asyn
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+    "Authorization": "Bearer dev-admin-token",
     },
     body: JSON.stringify({
       name: `Burst Test ${Date.now()}`,
@@ -90,6 +91,7 @@ test("concurrent requests cannot bypass the 4-seat user limit", async () => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+       "Authorization": "Bearer dev-admin-token",
     },
     body: JSON.stringify({
       name: `User Limit Burst ${Date.now()}`,
@@ -193,3 +195,5 @@ test("concurrent requests cannot bypass the 4-seat user limit", async () => {
   assert.equal(state.counts.confirmed, 4);
   assert.equal(state.seatCount, 6);
 });
+
+

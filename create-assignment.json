@@ -1,0 +1,5 @@
+{
+  "name": "Assignment Format Test",
+  "seats": ["A1", "A2", "A3"],
+  "price_paise": 25000
+}

@@ -1,0 +1,4 @@
+{
+  "seats": ["A1"],
+  "idempotency_key": "assignment-test-001"
+}

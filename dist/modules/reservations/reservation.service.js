@@ -55,12 +55,12 @@ const reserveSeats = async (showId, userId, request, idempotencyKey) => {
     `, [existingReservation.id]);
             await client.query("COMMIT");
             return {
-                id: existingReservation.id,
-                showId: existingReservation.show_id,
-                userId: existingReservation.user_id,
+                reservation_id: existingReservation.id,
+                show_id: existingReservation.show_id,
+                user_id: existingReservation.user_id,
+                seats: existingSeatsResult.rows.map((seat) => seat.seat_number),
+                amount_paise: Number(existingReservation.amount_paise),
                 status: existingReservation.status,
-                seatNumbers: existingSeatsResult.rows.map((seat) => seat.seat_number),
-                amountPaise: Number(existingReservation.amount_paise),
             };
         }
         /*
@@ -170,12 +170,12 @@ const reserveSeats = async (showId, userId, request, idempotencyKey) => {
          */
         await client.query("COMMIT");
         return {
-            id: reservationId,
-            showId,
-            userId,
+            reservation_id: reservationId,
+            show_id: showId,
+            user_id: userId,
+            seats: seatsResult.rows.map((seat) => seat.seat_number),
+            amount_paise: Number(amountPaise),
             status: "confirmed",
-            seatNumbers: seatsResult.rows.map((seat) => seat.seat_number),
-            amountPaise: Number(amountPaise),
         };
     }
     catch (error) {

@@ -1,0 +1,14 @@
+﻿{
+  "name": "Production Test Show",
+  "startsAt": "2026-12-01T18:00:00Z",
+  "seats": [
+    {
+      "seatNumber": "A1",
+      "pricePaise": 10000
+    },
+    {
+      "seatNumber": "A2",
+      "pricePaise": 10000
+    }
+  ]
+}

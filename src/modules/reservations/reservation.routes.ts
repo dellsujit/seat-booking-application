@@ -20,17 +20,40 @@ const reserveSeatsSchema = {
   body: {
     type: "object",
     additionalProperties: false,
-    required: ["seatNumbers"],
+    anyOf: [
+      {
+        required: ["seatNumbers"],
+      },
+      {
+        required: ["seats"],
+      },
+    ],
     properties: {
-    seatNumbers: {
-      type: "array",
-      minItems: 1,
-      items: {
+      seatNumbers: {
+        type: "array",
+        minItems: 1,
+        items: {
+          type: "string",
+          minLength: 1,
+          maxLength: 20,
+        },
+      },
+
+      seats: {
+        type: "array",
+        minItems: 1,
+        items: {
+          type: "string",
+          minLength: 1,
+          maxLength: 20,
+        },
+      },
+
+      idempotency_key: {
         type: "string",
         minLength: 1,
-        maxLength: 20,
+        maxLength: 200,
       },
-    },
     },
   },
 };
@@ -53,7 +76,15 @@ export const reservationRoutes = async (app: FastifyInstance) => {
 
 
         metrics.bookingRequests++;
-        const seatNumbers = request.body.seatNumbers;
+        const seatNumbers =
+        request.body.seatNumbers ??
+        request.body.seats;
+
+      if (!seatNumbers || seatNumbers.length === 0) {
+        return reply.status(400).send({
+          error: "seats are required",
+        });
+      }
 
         /*
          * Reject duplicate seat numbers in the same request.
@@ -66,22 +97,45 @@ export const reservationRoutes = async (app: FastifyInstance) => {
           });
         }
 
-        const idempotencyKey = request.headers["idempotency-key"];
+        const headerIdempotencyKey = request.headers["idempotency-key"];
+        const bodyIdempotencyKey = request.body.idempotency_key;
 
-        if (!idempotencyKey || Array.isArray(idempotencyKey)) {
+        if (Array.isArray(headerIdempotencyKey)) {
           return reply.status(400).send({
-            error: "Idempotency-Key header is required",
+            error: "Invalid idempotency key",
+          });
+        }
+     
+        if (
+          headerIdempotencyKey &&
+          bodyIdempotencyKey &&
+          headerIdempotencyKey !== bodyIdempotencyKey
+        ) {
+          return reply.status(400).send({
+            error: "Idempotency keys do not match",
+          });
+        }
+
+        const idempotencyKey =
+          headerIdempotencyKey ??
+          bodyIdempotencyKey;
+
+        if (!idempotencyKey) {
+          return reply.status(400).send({
+            error: "Idempotency key is required",
           });
         }
 
 
 
-        const result = await reserveSeats(
-          request.params.showId,
-          request.userId,
-          request.body,
-          idempotencyKey
-        );
+       const result = await reserveSeats(
+        request.params.showId,
+        request.userId,
+        {
+          seatNumbers,
+        },
+        idempotencyKey,
+      );
         metrics.bookingSuccess++;
         return reply.status(201).send(result);
       } catch (error) {

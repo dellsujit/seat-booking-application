@@ -1,0 +1,5 @@
+{
+  "name": "Reservation Contract Test",
+  "seats": ["A1", "A2"],
+  "price_paise": 25000
+}

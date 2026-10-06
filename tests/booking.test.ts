@@ -8,6 +8,7 @@ const createShow = async () => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: "Bearer dev-admin-token",
     },
     body: JSON.stringify({
       name: `Automated Test Show ${Date.now()}`,
@@ -111,7 +112,7 @@ test("reserve available seat", async () => {
 
   assert.equal(result.status, 201);
   assert.equal(result.body.status, "confirmed");
-  assert.deepEqual(result.body.seatNumbers, ["T1"]);
+  assert.deepEqual(result.body.seats, ["T1"]);
 });
 
 test("cannot reserve already confirmed seat", async () => {
@@ -158,10 +159,10 @@ test("idempotent retry returns original reservation", async () => {
   assert.equal(first.status, 201);
   assert.equal(second.status, 201);
 
-  assert.equal(
-    second.body.id,
-    first.body.id,
-  );
+assert.equal(
+  second.body.reservation_id,
+  first.body.reservation_id,
+);
 });
 
 test("idempotency key cannot be reused with different request", async () => {
@@ -238,7 +239,7 @@ test("owner can cancel reservation", async () => {
   assert.equal(reservation.status, 201);
 
   const response = await fetch(
-    `${BASE_URL}/reservations/${reservation.body.id}/cancel`,
+    `${BASE_URL}/reservations/${reservation.body.reservation_id}/cancel`,
     {
       method: "POST",
       headers: {
@@ -280,7 +281,7 @@ test("different user cannot cancel reservation", async () => {
   assert.equal(reservation.status, 201);
 
   const response = await fetch(
-    `${BASE_URL}/reservations/${reservation.body.id}/cancel`,
+    `${BASE_URL}/reservations/${reservation.body.reservation_id}/cancel`,
     {
       method: "POST",
       headers: {
@@ -342,8 +343,8 @@ test("idempotency key is scoped to show", async () => {
   assert.equal(second.status, 201);
 
   assert.notEqual(
-    first.body.id,
-    second.body.id,
+    first.body.reservation_id,
+    second.body.reservation_id,
   );
 
   const sameShowDifferentRequest = await reserve(
@@ -378,7 +379,7 @@ test("old cancellation cannot overwrite a newer confirmed reservation", async ()
 
   // User A cancels T1
   const cancelResponse = await cancel(
-    firstBody.id,
+    firstBody.reservation_id,
     "user-A",
   );
 
@@ -397,7 +398,7 @@ test("old cancellation cannot overwrite a newer confirmed reservation", async ()
   // User A repeats the old cancellation.
   // This must NOT release T1 again.
   const repeatedCancel = await cancel(
-    firstBody.id,
+    firstBody.reservation_id,
     "user-A",
   );
 
@@ -437,7 +438,7 @@ test("reservation amount is calculated in integer paise", async () => {
   );
 
   assert.equal(reservation.status, 201);
-  assert.equal(reservation.body.amountPaise, 22000);
+  assert.equal(reservation.body.amount_paise, 22000);;
 });
 
 test("reservation requires authentication", async () => {
@@ -484,14 +485,14 @@ test("request cannot override authenticated user identity", async () => {
   const reservation = await response.json();
 
   const attackerCancel = await cancel(
-    reservation.id,
+    reservation.reservation_id,
     "attacker-user",
   );
 
   assert.equal(attackerCancel.status, 403);
 
   const ownerCancel = await cancel(
-    reservation.id,
+    reservation.reservation_id,
     "real-user",
   );
 

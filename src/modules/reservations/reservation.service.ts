@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { pool } from "../../db/pool.js";
-import type { ReserveSeatsRequest } from "../shows/show.types.js";
+import type { NormalizedReserveSeatsRequest, ReserveSeatsRequest } from "../shows/show.types.js";
 
 export class ReservationConflictError extends Error {
   constructor(message: string) {
@@ -13,7 +13,7 @@ export class ReservationConflictError extends Error {
 export const reserveSeats = async (
   showId: string,
   userId: string,
-  request: ReserveSeatsRequest,
+  request: NormalizedReserveSeatsRequest,
   idempotencyKey: string,
 ) => {
 
@@ -94,14 +94,14 @@ if (existingReservationResult.rows.length > 0) {
   await client.query("COMMIT");
 
   return {
-    id: existingReservation.id,
-    showId: existingReservation.show_id,
-    userId: existingReservation.user_id,
-    status: existingReservation.status,
-    seatNumbers: existingSeatsResult.rows.map(
+    reservation_id: existingReservation.id,
+    show_id: existingReservation.show_id,
+    user_id: existingReservation.user_id,
+    seats: existingSeatsResult.rows.map(
       (seat) => seat.seat_number,
     ),
-    amountPaise: Number(existingReservation.amount_paise),
+    amount_paise: Number(existingReservation.amount_paise),
+    status: existingReservation.status,
   };
 }
 
@@ -256,14 +256,14 @@ if (existingReservationResult.rows.length > 0) {
     await client.query("COMMIT");
 
     return {
-      id: reservationId,
-      showId,
-      userId,
-      status: "confirmed",
-      seatNumbers: seatsResult.rows.map(
+      reservation_id: reservationId,
+      show_id: showId,
+      user_id: userId,
+      seats: seatsResult.rows.map(
         (seat) => seat.seat_number,
       ),
-      amountPaise: Number(amountPaise),
+      amount_paise: Number(amountPaise),
+      status: "confirmed",
     };
   } catch (error) {
     await client.query("ROLLBACK");
