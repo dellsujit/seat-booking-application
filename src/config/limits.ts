@@ -1,0 +1,5 @@
+const DEFAULT_PER_USER_SEAT_LIMIT = 4;
+
+export const PER_USER_SEAT_LIMIT = Number(
+  process.env.PER_USER_SEAT_LIMIT ?? DEFAULT_PER_USER_SEAT_LIMIT,
+);

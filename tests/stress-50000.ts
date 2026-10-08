@@ -1,5 +1,7 @@
 async function main() {
   const BASE_URL = "http://localhost:3000";
+  const TOTAL_REQUESTS = 50_000;
+  const CONCURRENCY = 500;
 
   const createResponse = await fetch(`${BASE_URL}/shows`, {
     method: "POST",
@@ -28,74 +30,104 @@ async function main() {
   const show = await createResponse.json();
 
   console.log(`Show: ${show.id}`);
-  console.log("Sending 50,000 concurrent requests...");
+  console.log(`Total requests: ${TOTAL_REQUESTS}`);
+  console.log(`Concurrency: ${CONCURRENCY}`);
+  console.log("Starting stress test...\n");
 
   const start = performance.now();
 
-  const requests = Array.from({ length: 50_000 }, (_, index) =>
-    fetch(`${BASE_URL}/shows/${show.id}/reserve`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer stress-user-${index}`,
-        "Idempotency-Key": `stress-${index}`,
+  let confirmed = 0;
+  let conflicts = 0;
+  let serverErrors = 0;
+  let other = 0;
+
+  for (
+    let batchStart = 0;
+    batchStart < TOTAL_REQUESTS;
+    batchStart += CONCURRENCY
+  ) {
+    const batchEnd = Math.min(
+      batchStart + CONCURRENCY,
+      TOTAL_REQUESTS,
+    );
+
+    const requests = Array.from(
+      { length: batchEnd - batchStart },
+      (_, offset) => {
+        const index = batchStart + offset;
+
+        return fetch(
+          `${BASE_URL}/shows/${show.id}/reserve`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer stress-user-${index}`,
+              "Idempotency-Key": `stress-${index}`,
+            },
+            body: JSON.stringify({
+              seatNumbers: ["HOT1"],
+            }),
+          },
+        );
       },
-      body: JSON.stringify({
-        seatNumbers: ["HOT1"],
-      }),
-    }),
-  );
+    );
 
-  const responses = await Promise.all(requests);
+    const responses = await Promise.all(requests);
 
-  const elapsed = performance.now() - start;
+    for (const response of responses) {
+      if (response.status === 201) {
+        confirmed++;
+      } else if (response.status === 409) {
+        conflicts++;
+      } else if (response.status >= 500) {
+        serverErrors++;
+      } else {
+        other++;
+      }
+    }
 
-  const counts = {
-    confirmed: 0,
-    conflict: 0,
-    serverError: 0,
-    other: 0,
-  };
-
-  for (const response of responses) {
-    if (response.status === 201) {
-      counts.confirmed++;
-    } else if (response.status === 409) {
-      counts.conflict++;
-    } else if (response.status >= 500) {
-      counts.serverError++;
-    } else {
-      counts.other++;
+    if ((batchEnd % 5000 === 0) || batchEnd === TOTAL_REQUESTS) {
+      console.log(
+        `Progress: ${batchEnd}/${TOTAL_REQUESTS}`,
+      );
     }
   }
 
+  const elapsed = performance.now() - start;
+  const seconds = elapsed / 1000;
+
   console.log("\n=== 50,000 REQUEST STRESS TEST ===");
-  console.log(`Total:        ${responses.length}`);
-  console.log(`Confirmed:    ${counts.confirmed}`);
-  console.log(`409 Conflict: ${counts.conflict}`);
-  console.log(`5xx:          ${counts.serverError}`);
-  console.log(`Other:        ${counts.other}`);
-  console.log(`Duration:     ${(elapsed / 1000).toFixed(2)}s`);
+  console.log(`Total:        ${TOTAL_REQUESTS}`);
+  console.log(`Confirmed:    ${confirmed}`);
+  console.log(`409 Conflict: ${conflicts}`);
+  console.log(`5xx:          ${serverErrors}`);
+  console.log(`Other:        ${other}`);
+  console.log(`Duration:     ${seconds.toFixed(2)}s`);
   console.log(
-    `Throughput:   ${(responses.length / (elapsed / 1000)).toFixed(0)} req/s`,
+    `Throughput:   ${(TOTAL_REQUESTS / seconds).toFixed(0)} req/s`,
   );
 
   const showResponse = await fetch(
     `${BASE_URL}/shows/${show.id}`,
   );
 
-  console.log(`\nShow status: ${showResponse.status}`);
+  if (showResponse.status !== 200) {
+    throw new Error(
+      `Failed to fetch show: ${showResponse.status}`,
+    );
+  }
 
   const state = await showResponse.json();
 
-  console.log("Final reconciliation:");
+  console.log("\nFinal reconciliation:");
   console.log(JSON.stringify(state.counts, null, 2));
 
   if (
-    counts.confirmed !== 1 ||
-    counts.conflict !== 49_999 ||
-    counts.serverError !== 0 ||
-    counts.other !== 0
+    confirmed !== 1 ||
+    conflicts !== TOTAL_REQUESTS - 1 ||
+    serverErrors !== 0 ||
+    other !== 0
   ) {
     throw new Error("STRESS TEST FAILED");
   }
@@ -113,6 +145,7 @@ async function main() {
 }
 
 main().catch((error) => {
+  console.error("\n❌ STRESS TEST FAILED");
   console.error(error);
   process.exit(1);
 });

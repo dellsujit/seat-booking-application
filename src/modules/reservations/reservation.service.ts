@@ -2,6 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { pool } from "../../db/pool.js";
 import type { NormalizedReserveSeatsRequest, ReserveSeatsRequest } from "../shows/show.types.js";
+import { PER_USER_SEAT_LIMIT } from "../../config/limits.js";
+import { recordBookingDeclined, metrics } from "../../config/metrics.js";
 
 export class ReservationConflictError extends Error {
   constructor(message: string) {
@@ -77,6 +79,8 @@ if (existingReservationResult.rows.length > 0) {
     );
   }
 
+    recordBookingDeclined("idempotent-replay");
+
   const existingSeatsResult = await client.query<{
     seat_number: string;
   }>(
@@ -148,7 +152,9 @@ if (existingReservationResult.rows.length > 0) {
       (seat) => seat.status !== "available",
     );
 
-    if (unavailableSeat) {
+     if (unavailableSeat) {
+      recordBookingDeclined("seat-taken");
+
       throw new ReservationConflictError(
         `Seat ${unavailableSeat.seat_number} is not available`,
       );
@@ -173,9 +179,11 @@ if (existingReservationResult.rows.length > 0) {
     const existingSeatCount = Number(userSeatsResult.rows[0].count);
     const requestedSeatCount = request.seatNumbers.length;
 
-    if (existingSeatCount + requestedSeatCount > 4) {
+    if (existingSeatCount + requestedSeatCount > PER_USER_SEAT_LIMIT) {
+      recordBookingDeclined("per-user-limit");
+
       throw new ReservationConflictError(
-        "User cannot reserve more than 4 seats for a show",
+        `User cannot reserve more than ${PER_USER_SEAT_LIMIT} seats for a show`,
       );
     }
 
@@ -255,6 +263,8 @@ if (existingReservationResult.rows.length > 0) {
      */
     await client.query("COMMIT");
 
+    metrics.bookingSuccess++;
+    
     return {
       reservation_id: reservationId,
       show_id: showId,

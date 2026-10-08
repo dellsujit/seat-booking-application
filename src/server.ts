@@ -4,9 +4,15 @@ import { pool } from "./db/pool.js";
 import { showRoutes } from "./modules/shows/show.routes.js";
 import { reservationRoutes } from "./modules/reservations/reservation.routes.js";
 import { metrics } from "./config/metrics.js";
+import crypto from "node:crypto";
 
 const app = Fastify({
   logger: true,
+  genReqId: () => crypto.randomUUID(),
+});
+
+app.addHook("onRequest", async (request, reply) => {
+  reply.header("X-Request-ID", request.id);
 });
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -56,6 +62,14 @@ const startServer = async (): Promise<void> => {
 
 
 app.get("/metrics", async (_request, reply) => {
+  const availableSeatsResult = await pool.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM seats
+     WHERE status = 'available'`,
+  );
+
+  const seatsAvailable = Number(availableSeatsResult.rows[0].count);
+
   const output = [
     "# HELP booking_requests_total Total number of booking requests",
     "# TYPE booking_requests_total counter",
@@ -68,6 +82,12 @@ app.get("/metrics", async (_request, reply) => {
     "# HELP booking_conflicts_total Total number of booking conflicts",
     "# TYPE booking_conflicts_total counter",
     `booking_conflicts_total ${metrics.bookingConflicts}`,
+
+    "# HELP booking_declined_total Total number of declined bookings by reason",
+    "# TYPE booking_declined_total counter",
+    `booking_declined_total{reason="seat-taken"} ${metrics.bookingDeclinedSeatTaken}`,
+    `booking_declined_total{reason="per-user-limit"} ${metrics.bookingDeclinedPerUserLimit}`,
+    `booking_declined_total{reason="idempotent-replay"} ${metrics.bookingDeclinedIdempotentReplay}`,
 
     "# HELP booking_errors_total Total number of unexpected booking errors",
     "# TYPE booking_errors_total counter",
@@ -84,6 +104,10 @@ app.get("/metrics", async (_request, reply) => {
     "# HELP cancellation_errors_total Total number of unexpected cancellation errors",
     "# TYPE cancellation_errors_total counter",
     `cancellation_errors_total ${metrics.cancellationErrors}`,
+
+    "# HELP seats_available Number of currently available seats",
+    "# TYPE seats_available gauge",
+    `seats_available ${seatsAvailable}`,
   ].join("\n");
 
   return reply
