@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { pool } from "../../db/pool.js";
-import type { NormalizedReserveSeatsRequest } from "../shows/show.types.js";
+import type { NormalizedCreateShowRequest  } from "../shows/show.types.js";
 
-export const createShow = async (request: NormalizedReserveSeatsRequest) => {
+export const createShow = async (request: NormalizedCreateShowRequest) => {
   const client: PoolClient = await pool.connect();
 
   try {
