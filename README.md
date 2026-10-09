@@ -32,51 +32,7 @@ The system is designed to handle concurrent reservation attempts for the same se
 
 
 
-\## Architecture
 
 
 
-```text
-
-Client
-
-&#x20; |
-
-&#x20; v
-
-Fastify HTTP API
-
-&#x20; |
-
-&#x20; +--> Authentication middleware
-
-&#x20; |
-
-&#x20; +--> Reservation service
-
-&#x20; |       |
-
-&#x20; |       +--> PostgreSQL transaction
-
-&#x20; |       +--> Transaction-scoped advisory lock
-
-&#x20; |       +--> Row-level seat locking
-
-&#x20; |       +--> Idempotency validation
-
-&#x20; |       +--> Per-user limit validation
-
-&#x20; |
-
-&#x20; +--> Show service
-
-&#x20; |
-
-&#x20; +--> Health / Metrics
-
-&#x20; |
-
-&#x20; v
-
-PostgreSQL
 
