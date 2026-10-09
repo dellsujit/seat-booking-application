@@ -1,23 +1,24 @@
-## Burst Test — 50,000 Requests
+Burst Test — 50,000 Requests
 
-The project includes a burst test to evaluate reservation behavior under high concurrency and verify that the same seat cannot be booked more than once.
+The project includes a stress test to verify reservation behavior under high concurrency and ensure that a seat cannot be booked more than once.
 
-### How to Run
+How to Run
 
 Clone the repository and install dependencies:
 
-```bash
 git clone https://github.com/dellsujit/seat-booking-application.git
 cd seat-booking-application
 npm ci
-```
 
-Run the burst test:
+Configure the target API and admin token (Windows CMD):
 
-```bash
+set BASE_URL=https://seat-booking-application-nvfa.onrender.com
+set ADMIN_TOKEN=dev-admin-token
+
+Run the stress test:
+
 npx tsx tests/stress-50000.ts
-```
 
-The test reports reservation successes, conflicts, and unexpected server errors.
+The script creates a test show and sends 50,000 reservation requests with a concurrency of 500.
 
-**Note:** Configure the test target and use a dedicated test show before running against the deployed API. Check the script for its supported environment variables and test setup.
+Expected result: One successful reservation, 49,999 conflicts, and zero unexpected server errors.
