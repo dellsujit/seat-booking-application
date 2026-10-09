@@ -1,5 +1,6 @@
 async function main() {
-  const BASE_URL = "http://localhost:3000";
+  const BASE_URL =
+  process.env.BASE_URL || "http://localhost:3000";
   const TOTAL_REQUESTS = 50_000;
   const CONCURRENCY = 500;
 
@@ -7,7 +8,7 @@ async function main() {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": "Bearer dev-admin-token",
+      "Authorization": `Bearer ${process.env.ADMIN_TOKEN || "dev-admin-token"}`,
     },
     body: JSON.stringify({
       name: `Stress Test ${Date.now()}`,
