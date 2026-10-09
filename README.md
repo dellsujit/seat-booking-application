@@ -1,38 +1,23 @@
-\# Seat Reservation at Scale
+## Burst Test — 50,000 Requests
 
+The project includes a burst test to evaluate reservation behavior under high concurrency and verify that the same seat cannot be booked more than once.
 
+### How to Run
 
-A production-oriented seat reservation backend built with Node.js, TypeScript, Fastify, and PostgreSQL.
+Clone the repository and install dependencies:
 
+```bash
+git clone https://github.com/dellsujit/seat-booking-application.git
+cd seat-booking-application
+npm ci
+```
 
+Run the burst test:
 
-The system is designed to handle concurrent reservation attempts for the same seat without double-selling, while supporting idempotency, per-user seat limits, cancellation, reconciliation, health checks, metrics, and structured request logging.
+```bash
+npx tsx tests/stress-50000.ts
+```
 
+The test reports reservation successes, conflicts, and unexpected server errors.
 
-
-\## Tech Stack
-
-
-
-\- Node.js
-
-\- TypeScript
-
-\- Fastify
-
-\- PostgreSQL
-
-\- `pg`
-
-\- node-pg-migrate
-
-\- Docker / Docker Compose
-
-\- Render for production deployment
-
-
-
-
-
-
-
+**Note:** Configure the test target and use a dedicated test show before running against the deployed API. Check the script for its supported environment variables and test setup.
